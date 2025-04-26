@@ -15,23 +15,26 @@ import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @Getter
 public class LocationService {
 
     private List<Location> locations;
+    private List<Location> departments;
+    private Set<String> seenDepartmentsCodes;
 
-    @Value( "${locations_filename}" )
+    @Value("${locations_filename}")
     private String locationsFilename;
 
     @PostConstruct
     public void readLocationsFromCSV() throws IOException, URISyntaxException {
         locations = new ArrayList<>();
-        locations.add(new Location("05","ANTIOQUIA"));
-        locations.add(new Location("17","CALDAS"));
-        locations.add(new Location("66","RISARALDA"));
+        departments = new ArrayList<>();
+        seenDepartmentsCodes = new HashSet<>();
 
         Path pathFile = Paths.get(ClassLoader.getSystemResource(locationsFilename).toURI());
 
@@ -42,7 +45,13 @@ public class LocationService {
             while ((line = csvReader.readNext()) != null) {
 
                 // Crear un nuevo objeto Location y agregarlo a la lista
-                locations.add(new Location(line[2],line[3]));
+                locations.add(new Location(line[2], line[3]));
+
+                if (!seenDepartmentsCodes.contains(line[0])) {
+                    departments.add(new Location(line[0], line[1]));
+                    seenDepartmentsCodes.add(line[0]);
+                }
+
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -61,14 +70,73 @@ public class LocationService {
         return null;
     }
 
+    public List<Location> getLocationsByName(String name) {
+        List<Location> results = new ArrayList<>();
+        for (Location location : locations) {
+            if (location.getMunicipality().equalsIgnoreCase(name)) {
+                results.add(location);
+            }
+        }
+        return results;
+    }
+
     public List<Location> getStates() {
         List<Location> states = new ArrayList<>();
-        for (Location location : locations) {
-            if(location.getCode().length() ==2){
+        for (Location location : departments) {
+            if (location.getCode().length() == 2) {
                 states.add(location);
             }
         }
         return states;
+    }
+
+    public List<Location> getDepartmentByInitial(char initial) {
+        List<Location> filtered = new ArrayList<>();
+        for (Location Department : departments) {
+            Location department = null;
+            if (!department.getMunicipality().isEmpty() &&
+                    Character.toUpperCase(department.getMunicipality().charAt(0)) == Character.toUpperCase(initial)) {
+                filtered.add(department);
+                {
+                }
+            }
+        }
+        return filtered;
+    }
+    //get Capitals
+    public List<Location> getCapitals() {
+        List<Location> capitals = new ArrayList<>();
+
+        for (Location location : locations) {
+            for (Location department : departments) {
+                if (location.getCode().startsWith(department.getCode()) &&
+                        location.getCode().endsWith("001")) {
+                    capitals.add(location);
+                    break; // Ya encontramos la capital para este departamento
+                }
+            }
+        }
+
+        return capitals;
+    }
+
+    public List<Location> getDepartmentsWithCapitals() {
+        List<Location> result = new ArrayList<>();
+
+        for (Location department : departments) {
+            result.add(department);
+
+
+            for (Location location : locations) {
+                if (location.getCode().startsWith(department.getCode()) &&
+                        location.getCode().endsWith("001")) {
+                    result.add(location);
+                    break;
+                }
+            }
+        }
+
+        return result;
     }
 
 }
